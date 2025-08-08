@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Calculadora de Carta Natal</title>
+<style>
+:root{--bg:#fff7fb;--panel:#ffffff;--text:#2a2a31;--muted:#6b7280;--accent:#f4a7d7;--accent-2:#ffd1e8;--stroke:#f0e6f2}
+html,body{margin:0;padding:0;background:linear-gradient(180deg,#fff7fb 0%,#fff 50%);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
+.wrap{max-width:1100px;margin:24px auto;padding:0 16px}
+h1{font-size:clamp(20px,3vw,28px);margin:0 0 6px}
+.subtitle{color:var(--muted);margin-bottom:20px}
+.grid{display:grid;grid-template-columns:1.1fr 1fr;gap:20px}
+form{background:var(--panel);padding:16px;border-radius:20px;box-shadow:0 8px 30px rgba(244,167,215,.25);border:1px solid var(--stroke)}
+label{display:block;font-size:14px;margin:10px 0 6px}
+input,select,button{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--stroke);background:#fff;color:var(--text)}
+.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;margin-top:6px}
+button{cursor:pointer;background:var(--accent);border:none;font-weight:700;margin-top:12px;transition:transform .05s ease, box-shadow .2s ease;box-shadow:0 6px 20px rgba(244,167,215,.45)}
+button:hover{transform:translateY(-1px)}
+button:active{transform:translateY(0)}
+button:disabled{opacity:.6;cursor:not-allowed;box-shadow:none}
+.hint{font-size:12px;color:var(--muted)}
+.notice{font-size:12px;color:#6b7280;margin-top:10px}
+.panel{background:var(--panel);padding:16px;border-radius:20px;box-shadow:0 8px 30px rgba(244,167,215,.25);border:1px solid var(--stroke)}
+#paper{width:100%;min-height:820px}
+.results{margin-top:12px;font-size:14px;line-height:1.5}
+.results code{background:#fff;border:1px solid var(--stroke);padding:2px 6px;border-radius:6px}
+.footer{margin-top:16px;color:var(--muted);font-size:12px}
+.tag{display:inline-block;background:#fff;border:1px solid var(--stroke);padding:2px 6px;border-radius:8px;margin:2px 4px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:var(--accent-2);border:1px solid var(--stroke);font-size:12px}
+.autocomplete{position:relative}
+.ac-list{position:absolute;z-index:50;top:100%;left:0;right:0;background:#fff;border:1px solid var(--stroke);border-radius:12px;margin-top:6px;box-shadow:0 8px 30px rgba(0,0,0,.08);max-height:220px;overflow:auto}
+.ac-item{padding:10px 12px;cursor:pointer}
+.ac-item:hover{background:#fff7fb}
+@media (max-width: 980px){.grid{grid-template-columns:1fr}}
+</style>
+<script src="https://unpkg.com/@astrodraw/astrochart" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/canvg/3.0.10/umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+<h1>Calculadora de Carta Natal</h1>
+<div class="subtitle">Calcula tu carta natal en segundos. Zodiaco tropical · Casas Whole Sign.</div>
+<div class="grid">
+<form id="form">
+<div class="row">
+<div>
+<label>Nombre</label>
+<input id="name" placeholder="Ej: Ana" />
+</div>
+<div>
+<label>Sexo (opcional)</label>
+<select id="gender">
+<option value="">Prefiero no decir</option>
+<option value="F">Femenino</option>
+<option value="M">Masculino</option>
+<option value="X">No binario</option>
+</select>
+</div>
+</div>
+<div class="row">
+<div>
+<label>Fecha de nacimiento</label>
+<input id="date" type="date" required />
+</div>
+<div>
+<label>Hora exacta (24h) <input type="checkbox" id="unknownTime"> No conozco la hora</label>
+<input id="time" type="time" step="60" required />
+</div>
+</div>
+<div class="row">
+<div>
+<label>Zona horaria</label>
+<select id="tzSelect"></select>
+<div class="hint">Se ajusta automáticamente por horario de verano según la fecha.</div>
+</div>
+<div>
+<label>Ciudad y país</label>
+<div class="autocomplete">
+<input id="place" placeholder="Ej: Panamá, Panamá" autocomplete="off" required />
+<div id="ac" class="ac-list" style="display:none"></div>
+</div>
+<div class="hint">Empieza a escribir y selecciona de la lista (Mapbox).</div>
+</div>
+</div>
+<button id="btn" type="submit">Calcular carta</button>
+<div class="notice">Swiss Ephemeris: GPL para proyectos open-source. Para uso comercial/cerrado, requiere licencia de Astrodienst.</div>
+</form>
+<div class="panel">
+<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:8px">
+<div class="badge">🪐 <span>Gráfico</span></div>
+<div style="display:flex;gap:8px">
+<button id="btnPdf" type="button">Descargar PDF</button>
+</div>
+</div>
+<div id="paper"></div>
+<div class="results" id="results"></div>
+<div class="footer">
+<div>🪐 Cálculo: Swiss Ephemeris (WASM) · Dibujo: AstroChart · Casas: Whole Sign · Zodiaco: Tropical</div>
+<div id="meta"></div>
+</div>
+</div>
+</div>
+</div>
+<script type="module">
+import SwissEph from 'https://cdn.jsdelivr.net/gh/prolaxu/swisseph-wasm@main/src/swisseph.js';
+import { BirthChartCalculator } from 'https://cdn.jsdelivr.net/gh/prolaxu/swisseph-wasm@main/examples/birth-chart.js';
+const form=document.getElementById('form'),btn=document.getElementById('btn'),results=document.getElementById('results'),meta=document.getElementById('meta'),tzSelect=document.getElementById('tzSelect'),btnPdf=document.getElementById('btnPdf');
+const MAPBOX_TOKEN='pk.eyJ1Ijoic2hpbmluZ3N0YXJzIiwiYSI6ImNtZTJ4eGF1MjAxZGEya29nNWdhZ3huOHAifQ.lFMgUKBVZnMC8w0--4A52Q';
+let lastPlace=null;
+async function geocodeMapbox(q){const url=`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?access_token=${MAPBOX_TOKEN}&language=es&limit=5`,res=await fetch(url),data=await res.json();if(!data.features?.length) throw new Error('Ubicación no encontrada');const f=data.features[0];return{lat:f.center[1],lon:f.center[0],label:f.place_name}}
+const acBox=document.getElementById('ac'),placeInput=document.getElementById('place');
+async function onPlaceInput(){const q=placeInput.value.trim();lastPlace=null;if(q.length<3){acBox.style.display='none';return;}const url=`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?access_token=${MAPBOX_TOKEN}&language=es&limit=5`,res=await fetch(url),data=await res.json();acBox.innerHTML='';for(const f of(data.features||[])){const div=document.createElement('div');div.className='ac-item';div.textContent=f.place_name;div.onclick=()=>{placeInput.value=f.place_name;lastPlace={lat:f.center[1],lon:f.center[0],label:f.place_name};acBox.style.display='none';};acBox.appendChild(div);}acBox.style.display=(acBox.children.length?'block':'none');}
+placeInput.addEventListener('input',onPlaceInput);document.addEventListener('click',e=>{if(!acBox.contains(e.target)&&e.target!==placeInput)acBox.style.display='none'});
+async function geocode(q){if(lastPlace)return lastPlace;return await geocodeMapbox(q)}
+const IANA_ZONES=Intl.supportedValuesOf?Intl.supportedValuesOf('timeZone'):[luxon.DateTime.local().zoneName];
+function buildTimezoneSelect(){const guess=luxon.DateTime.local().zoneName,preferred=[guess,'America/Panama','America/Mexico_City','America/Bogota','America/New_York','America/Los_Angeles','Europe/Madrid','Europe/London','UTC'],set=new Set([...preferred,...IANA_ZONES]);tzSelect.innerHTML='';for(const z of set){const opt=document.createElement('option');opt.value=z;opt.textContent=z;if(z===guess)opt.selected=true;tzSelect.appendChild(opt);}}
+buildTimezoneSelect();
+function offsetHoursFor(dateISO,zone){const dt=luxon.DateTime.fromISO(dateISO,{zone});return dt.offset/60}
+function drawChart({planetsLongitudes,houseCusps}){const data={planets:{},cusps:houseCusps},names=['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto'],glyphMap={Sun:'Sun',Moon:'Moon',Mercury:'Mercury',Venus:'Venus',Mars:'Mars',Jupiter:'Jupiter',Saturn:'Saturn',Uranus:'Uranus',Neptune:'Neptune',Pluto:'Pluto'};names.forEach(n=>{data.planets[glyphMap[n]]=[planetsLongitudes[n]]});const container=document.getElementById('paper');container.innerHTML='';new Chart('paper',800,800).radix(data)}
+async function downloadPDF(){const svgEl=document.querySelector('#paper svg');if(!svgEl)return alert('Genera la carta primero.');const serializer=new XMLSerializer(),svgStr=serializer.serializeToString(svgEl),canvas=document.createElement('canvas');canvas.width=1700;canvas.height=1700;const ctx=canvas.getContext('2d');await window.canvg.Canvg.fromString(ctx,svgStr).render();const imgData=canvas.toDataURL('image/png'),{jsPDF}=window.jspdf,pdf=new jsPDF({orientation:'portrait',unit:'pt',format:[900,1100]}),margin=40,imgW=820,imgH=820;pdf.setFont('helvetica','bold');pdf.setFontSize(18);pdf.text('Carta Natal — Whole Sign (Tropical)',margin,36+margin);pdf.addImage(imgData,'PNG',margin,60+margin,imgW,imgH);const metaTxt=document.getElementById('results').innerText||'';pdf.setFont('helvetica','normal');pdf.setFontSize(11);const lines=pdf.splitTextToSize(metaTxt,900-margin*2);pdf.text(lines,margin,60+margin+imgH+24);pdf.save('carta-natal.pdf')}
+btnPdf.addEventListener('click',downloadPDF);
+const unknownTime=document.getElementById('unknownTime');unknownTime.addEventListener('change',()=>{document.getElementById('time').disabled=unknownTime.checked;document.getElementById('time').required=!unknownTime.checked;});
+form.addEventListener('submit',async e=>{e.preventDefault();btn.disabled=true;results.textContent='Calculando…';try{const name=document.getElementById('name').value.trim()||'Sin nombre',date=document.getElementById('date').value,timeField=document.getElementById('time'),zone=tzSelect.value||'UTC',placeQ=document.getElementById('place').value.trim(),loc=await geocode(placeQ),[Y,M,D]=date.split('-').map(Number);let h=0,m=0;if(!unknownTime.checked){[h,m]=timeField.value.split(':').map(Number);}const tz=offsetHoursFor(`${date}T${timeField.value||'00:00'}`,zone),calculator=new BirthChartCalculator(new SwissEph({locateFile:f=>`https://cdn.jsdelivr.net/gh/prolaxu/swisseph-wasm@main/src/${f}`}));await calculator.init();const chart=await calculator.calculateBirthChart({year:Y,month:M,day:D,hour:h,minute:m,timezone:tz,latitude:loc.lat,longitude:loc.lon,zodiac:'tropical',houseSystem:'W'}),planetsLongitudes={};for(const [key,p] of Object.entries(chart.planets)){planetsLongitudes[p.name||key]=p.ecliptic.lon}const houseCusps=chart.houses.cusps;drawChart({planetsLongitudes,houseCusps});const signFmt=z=>`${z.sign} ${z.deg.toFixed(0)}°${z.min.toFixed(0)}'`,list=Object.values(chart.planets).map(p=>`<span class=\"tag\">${p.symbol} ${p.name}: ${signFmt(p.zodiacSign)}</span>`).join('');results.innerHTML=`<div><b>${name}</b> — ${loc.label}</div><div style=\"margin-top:8px\">${list}</div>`;meta.textContent=`Ascendente ${signFmt(chart.points.Ascendant.zodiacSign)} · MC ${signFmt(chart.points.Midheaven.zodiacSign)} · Casas: ${chart.houses.system}`;calculator.destroy()}catch(err){results.innerHTML=`<span style=\"color:#b91c1c\">Error: ${err?.message||err}</span>`}finally{btn.disabled=false}});
+</script>
+</body>
+</html>
