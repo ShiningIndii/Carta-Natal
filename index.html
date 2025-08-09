@@ -215,17 +215,14 @@ function toUtcDate(date, time, zone){
   const dt = luxon.DateTime.fromISO(`${date}T${time||'00:00'}`, { zone });
   return new Date(dt.toUTC().toISO());
 }
+// Geocéntrico de todos los cuerpos usando RA/Dec -> Eclíptica
 function eclipticLongitudes(dateUTC){
   const out = {};
   for (const b of bodies) {
-    let lon;
-    if (b === 'Sun') {
-      // Sol geocéntrico = longitud heliocéntrica de la Tierra + 180°
-      lon = (Astronomy.EclipticLongitude('Earth', dateUTC) + 180) % 360;
-    } else {
-      lon = Astronomy.EclipticLongitude(b, dateUTC);
-    }
-    out[b] = (lon % 360 + 360) % 360;
+    // Equator(body, time, observer=null, ofDate=true, aberration=true)
+    const equ = Astronomy.Equator(b, dateUTC, null, true, true);
+    const ecl = Astronomy.Ecliptic(equ);   // convierte RA/Dec a lon/lat eclípticas
+    out[b] = (ecl.elon % 360 + 360) % 360; // 0–360
   }
   return out;
 }
