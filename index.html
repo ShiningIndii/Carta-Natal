@@ -255,7 +255,7 @@ async function calculate({name, date, time, zone, place, demo=false}){
 
     // Swiss Ephemeris (force proper WASM path)
     const calculator = new BirthChartCalculator(new SwissEph({
-      locateFile: (f)=> `https://cdn.jsdelivr.net/gh/prolaxu/swisseph-wasm@main/src/${f}`
+     locateFile: (f) => `https://cdn.jsdelivr.net/gh/prolaxu/swisseph-wasm@0.0.2/wasm/${f}`
     }));
     await calculator.init();
 
