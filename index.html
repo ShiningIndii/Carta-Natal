@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Calculadora de Carta Natal — Estable (sin WASM)</title>
+<title>Calculadora de Carta Natal — Estable (SVG puro)</title>
 <style>
 :root{--bg:#fff7fb;--panel:#ffffff;--text:#2a2a31;--muted:#6b7280;--accent:#f4a7d7;--accent-2:#ffd1e8;--stroke:#f0e6f2}
 *{box-sizing:border-box}
@@ -17,10 +17,10 @@ form{background:var(--panel);padding:16px;border-radius:20px;box-shadow:0 8px 30
 label{font-size:14px}
 input,select,button{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--stroke);background:#fff;color:var(--text);min-height:44px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:10px}
-.time-wrap{display:flex;gap:10px;align-items:center}
+.time-wrap{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .check-wrap{display:flex;align-items:center;gap:6px;white-space:nowrap}
 button{cursor:pointer;background:var(--accent);border:none;font-weight:700;margin-top:12px;transition:transform .05s ease, box-shadow .2s ease;box-shadow:0 6px 20px rgba(244,167,215,.45)}
-button:hover{transform:translateY{-1px}}
+button:hover{transform:translateY(-1px)}
 button:active{transform:translateY(0)}
 button:disabled{opacity:.6;cursor:not-allowed;box-shadow:none}
 .hint{font-size:12px;color:var(--muted)}
@@ -38,12 +38,9 @@ button:disabled{opacity:.6;cursor:not-allowed;box-shadow:none}
 @media (max-width: 920px){
   .grid{grid-template-columns:1fr}
   .row{grid-template-columns:1fr}
-  .time-wrap{flex-wrap:wrap}
 }
 </style>
 
-<!-- Dibujo del gráfico -->
-<script src="https://unpkg.com/@astrodraw/astrochart" crossorigin="anonymous"></script>
 <!-- Exportar PDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/canvg/3.0.10/umd.min.js"></script>
@@ -55,7 +52,7 @@ button:disabled{opacity:.6;cursor:not-allowed;box-shadow:none}
 <body>
 <div class="wrap">
   <h1>Calculadora de Carta Natal</h1>
-  <div class="subtitle">Tropical · Sin WASM (estable). Casas Whole Sign opcionales — te las integro luego si quieres.</div>
+  <div class="subtitle">Tropical · SVG puro · Sin dependencias frágiles. (Luego te agrego casas Whole Sign si quieres).</div>
 
   <div class="grid">
     <form id="form">
@@ -139,7 +136,7 @@ const placeInput = document.getElementById('place');
 const MAPBOX_TOKEN = 'pk.eyJ1Ijoic2hpbmluZ3N0YXJzIiwiYSI6ImNtZTJ4eGF1MjAxZGEya29nNWdhZ3huOHAifQ.lFMgUKBVZnMC8w0--4A52Q'; // tu token
 let lastPlace = null;
 
-/* ===== UI helpers ===== */
+/* ===== UI ===== */
 function showError(err){
   const text = (err && err.stack) ? err.stack : (err?.message || String(err));
   errorsBox.style.display = 'block';
@@ -166,12 +163,6 @@ const IANA_ZONES = (Intl.supportedValuesOf ? Intl.supportedValuesOf('timeZone') 
     tzSelect.appendChild(opt);
   }
 })();
-
-function offsetHoursFor(dateISO, zone){
-  const dt = luxon.DateTime.fromISO(dateISO, { zone });
-  const off = dt.offset/60;
-  return Number.isFinite(off) ? off : 0;
-}
 
 /* ===== Geocoding + Autocomplete ===== */
 async function mapboxSuggest(q){
@@ -220,13 +211,10 @@ document.addEventListener('click', (e)=>{ if(!acBox.contains(e.target) && e.targ
 
 /* ===== Astronomy (sin WASM) ===== */
 const bodies = ['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto'];
-
 function toUtcDate(date, time, zone){
   const dt = luxon.DateTime.fromISO(`${date}T${time||'00:00'}`, { zone });
   return new Date(dt.toUTC().toISO());
 }
-
-// Sol: geocéntrico = SolarLongitude + 180°
 function eclipticLongitudes(dateUTC){
   const out = {};
   for (const b of bodies) {
@@ -242,13 +230,59 @@ function eclipticLongitudes(dateUTC){
   return out;
 }
 
-/* ===== Dibujo rueda (sin casas) ===== */
+/* ===== Dibujo SVG (rueda + planetas) ===== */
+const glyph = {
+  Sun:'\u2609', Moon:'\u263D', Mercury:'\u263F', Venus:'\u2640', Mars:'\u2642',
+  Jupiter:'\u2643', Saturn:'\u2644', Uranus:'\u2645', Neptune:'\u2646', Pluto:'\u2647'
+};
+function polar(cx, cy, r, angleDeg){
+  const a = (angleDeg-90) * Math.PI/180; // 0° arriba
+  return { x: cx + r*Math.cos(a), y: cy + r*Math.sin(a) };
+}
 function drawWheel(planetsLongitudes){
-  const data = { planets:{}, cusps: [] };
-  for(const b of bodies){ data.planets[b] = [ planetsLongitudes[b] ]; }
-  const container = document.getElementById('paper');
-  container.innerHTML = '';
-  new Chart('paper', 800, 800).radix(data);
+  const size = 820, cx = size/2, cy = size/2, R = 360, rPlanets = 300;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('width', size); svg.setAttribute('height', size);
+  svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+  // fondo
+  const bg = document.createElementNS(svg.namespaceURI,'rect');
+  bg.setAttribute('x','0'); bg.setAttribute('y','0');
+  bg.setAttribute('width', size); bg.setAttribute('height', size);
+  bg.setAttribute('fill','#fff');
+  svg.appendChild(bg);
+  // círculo exterior
+  const outer = document.createElementNS(svg.namespaceURI,'circle');
+  outer.setAttribute('cx',cx); outer.setAttribute('cy',cy);
+  outer.setAttribute('r',R); outer.setAttribute('fill','none');
+  outer.setAttribute('stroke','#e9d7ef'); outer.setAttribute('stroke-width','2');
+  svg.appendChild(outer);
+  // divisiones 12 signos
+  for(let i=0;i<12;i++){
+    const ang = i*30;
+    const p1 = polar(cx,cy,R,ang), p2 = polar(cx,cy,R-20,ang);
+    const line = document.createElementNS(svg.namespaceURI,'line');
+    line.setAttribute('x1',p1.x); line.setAttribute('y1',p1.y);
+    line.setAttribute('x2',p2.x); line.setAttribute('y2',p2.y);
+    line.setAttribute('stroke','#f4a7d7'); line.setAttribute('stroke-width','2');
+    svg.appendChild(line);
+  }
+  // planetas
+  for(const b of bodies){
+    const lon = planetsLongitudes[b]; // 0–360
+    const p = polar(cx,cy,rPlanets,lon);
+    const dot = document.createElementNS(svg.namespaceURI,'circle');
+    dot.setAttribute('cx',p.x); dot.setAttribute('cy',p.y);
+    dot.setAttribute('r',6); dot.setAttribute('fill','#f4a7d7');
+    svg.appendChild(dot);
+    const text = document.createElementNS(svg.namespaceURI,'text');
+    text.setAttribute('x', p.x+10); text.setAttribute('y', p.y+4);
+    text.setAttribute('font-size','16'); text.setAttribute('fill','#2a2a31');
+    text.textContent = `${glyph[b]} ${b}`;
+    svg.appendChild(text);
+  }
+  const paper = document.getElementById('paper');
+  paper.innerHTML = '';
+  paper.appendChild(svg);
 }
 
 /* ===== PDF ===== */
@@ -327,3 +361,4 @@ btnDemo.addEventListener('click', ()=>{
 </script>
 </body>
 </html>
+
