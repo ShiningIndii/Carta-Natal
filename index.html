@@ -6,23 +6,24 @@
 <title>Calculadora de Carta Natal — Estable (sin WASM)</title>
 <style>
 :root{--bg:#fff7fb;--panel:#ffffff;--text:#2a2a31;--muted:#6b7280;--accent:#f4a7d7;--accent-2:#ffd1e8;--stroke:#f0e6f2}
+*{box-sizing:border-box}
 html,body{margin:0;padding:0;background:linear-gradient(180deg,#fff7fb 0%,#fff 50%);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
 .wrap{max-width:1100px;margin:24px auto;padding:0 16px}
 h1{font-size:clamp(22px,3vw,32px);margin:0 0 6px}
 .subtitle{color:var(--muted);margin-bottom:20px}
-.grid{display:grid;grid-template-columns:1.1fr 1fr;gap:20px}
+.grid{display:grid;grid-template-columns:1.05fr 1fr;gap:20px}
 form{background:var(--panel);padding:16px;border-radius:20px;box-shadow:0 8px 30px rgba(244,167,215,.25);border:1px solid var(--stroke)}
-label{display:block;font-size:14px;margin:10px 0 6px}
-input,select,button{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--stroke);background:#fff;color:var(--text)}
-.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;margin-top:6px}
-.time-wrap{display:flex;align-items:center;gap:10px}
-.time-wrap .check-wrap{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+label{font-size:14px}
+input,select,button{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--stroke);background:#fff;color:var(--text);min-height:44px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:10px}
+.time-wrap{display:flex;gap:10px;align-items:center}
+.check-wrap{display:flex;align-items:center;gap:6px;white-space:nowrap}
 button{cursor:pointer;background:var(--accent);border:none;font-weight:700;margin-top:12px;transition:transform .05s ease, box-shadow .2s ease;box-shadow:0 6px 20px rgba(244,167,215,.45)}
-button:hover{transform:translateY(-1px)}
+button:hover{transform:translateY{-1px}}
 button:active{transform:translateY(0)}
 button:disabled{opacity:.6;cursor:not-allowed;box-shadow:none}
 .hint{font-size:12px;color:var(--muted)}
-.notice{font-size:12px;color:#6b7280;margin-top:10px}
 .panel{background:var(--panel);padding:16px;border-radius:20px;box-shadow:0 8px 30px rgba(244,167,215,.25);border:1px solid var(--stroke)}
 #paper{width:100%;min-height:820px}
 .results{margin-top:12px;font-size:14px;line-height:1.5}
@@ -34,10 +35,14 @@ button:disabled{opacity:.6;cursor:not-allowed;box-shadow:none}
 .ac-item:hover{background:#fff7fb}
 .err{background:#fee2e2;border:1px solid #fecaca;color:#7f1d1d;padding:10px;border-radius:10px;margin-top:10px;white-space:pre-wrap}
 .controls{display:flex;gap:8px;flex-wrap:wrap}
-@media (max-width: 980px){.grid{grid-template-columns:1fr}}
+@media (max-width: 920px){
+  .grid{grid-template-columns:1fr}
+  .row{grid-template-columns:1fr}
+  .time-wrap{flex-wrap:wrap}
+}
 </style>
 
-<!-- Dibujo del gráfico (rueda) -->
+<!-- Dibujo del gráfico -->
 <script src="https://unpkg.com/@astrodraw/astrochart" crossorigin="anonymous"></script>
 <!-- Exportar PDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -50,16 +55,16 @@ button:disabled{opacity:.6;cursor:not-allowed;box-shadow:none}
 <body>
 <div class="wrap">
   <h1>Calculadora de Carta Natal</h1>
-  <div class="subtitle">Tropical · Sin WASM · Estable. (Casas Whole Sign opcionales – te las integro luego si quieres).</div>
+  <div class="subtitle">Tropical · Sin WASM (estable). Casas Whole Sign opcionales — te las integro luego si quieres.</div>
 
   <div class="grid">
     <form id="form">
       <div class="row">
-        <div>
+        <div class="field">
           <label>Nombre</label>
           <input id="name" placeholder="Ej: Ana" />
         </div>
-        <div>
+        <div class="field">
           <label>Sexo (opcional)</label>
           <select id="gender">
             <option value="">Prefiero no decir</option>
@@ -71,11 +76,11 @@ button:disabled{opacity:.6;cursor:not-allowed;box-shadow:none}
       </div>
 
       <div class="row">
-        <div>
+        <div class="field">
           <label>Fecha de nacimiento</label>
           <input id="date" type="date" required />
         </div>
-        <div>
+        <div class="field">
           <label>Hora exacta (24h)</label>
           <div class="time-wrap">
             <input id="time" type="time" step="60" required />
@@ -85,12 +90,12 @@ button:disabled{opacity:.6;cursor:not-allowed;box-shadow:none}
       </div>
 
       <div class="row">
-        <div>
+        <div class="field">
           <label>Zona horaria</label>
-            <select id="tzSelect"></select>
-            <div class="hint">Se ajusta automáticamente por horario de verano según la fecha.</div>
+          <select id="tzSelect"></select>
+          <div class="hint">Se ajusta automáticamente por horario de verano según la fecha.</div>
         </div>
-        <div>
+        <div class="field">
           <label>Ciudad y país</label>
           <div class="autocomplete">
             <input id="place" placeholder="Ej: La Habana, Cuba" autocomplete="off" required />
@@ -106,7 +111,6 @@ button:disabled{opacity:.6;cursor:not-allowed;box-shadow:none}
         <button id="btnPdf" type="button">Descargar PDF</button>
       </div>
 
-      <div class="notice">Sin Swiss Ephemeris (WASM). Motor JS estable. Casas Whole Sign opcionales.</div>
       <div id="errors" class="err" style="display:none"></div>
     </form>
 
@@ -133,7 +137,7 @@ const placeInput = document.getElementById('place');
 
 /* ===== CONFIG ===== */
 const MAPBOX_TOKEN = 'pk.eyJ1Ijoic2hpbmluZ3N0YXJzIiwiYSI6ImNtZTJ4eGF1MjAxZGEya29nNWdhZ3huOHAifQ.lFMgUKBVZnMC8w0--4A52Q'; // tu token
-let lastPlace = null; // {lat, lon, label}
+let lastPlace = null;
 
 /* ===== UI helpers ===== */
 function showError(err){
@@ -183,7 +187,6 @@ async function geocodeSmart(q){
     const f = features[0];
     return { lat: f.center[1], lon: f.center[0], label: f.place_name };
   }catch(e){
-    // Fallback OSM
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`;
     const res = await fetch(url, { headers: { 'Accept-Language':'es' } });
     const data = await res.json();
@@ -217,15 +220,22 @@ document.addEventListener('click', (e)=>{ if(!acBox.contains(e.target) && e.targ
 
 /* ===== Astronomy (sin WASM) ===== */
 const bodies = ['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto'];
-function toUtcDateISO(date, time, zone){
+
+function toUtcDate(date, time, zone){
   const dt = luxon.DateTime.fromISO(`${date}T${time||'00:00'}`, { zone });
   return new Date(dt.toUTC().toISO());
 }
+
+// Sol: geocéntrico = SolarLongitude + 180°
 function eclipticLongitudes(dateUTC){
   const out = {};
-  for(const b of bodies){
-    // AstronomyEngine: ecl. longitude (deg) of body at date UTC
-    const lon = Astronomy.EclipticLongitude(b, dateUTC);
+  for (const b of bodies) {
+    let lon;
+    if (b === 'Sun') {
+      lon = (Astronomy.SolarLongitude(dateUTC) + 180) % 360;
+    } else {
+      lon = Astronomy.EclipticLongitude(b, dateUTC);
+    }
     out[b] = (lon % 360 + 360) % 360;
   }
   return out;
@@ -233,10 +243,8 @@ function eclipticLongitudes(dateUTC){
 
 /* ===== Dibujo rueda (sin casas) ===== */
 function drawWheel(planetsLongitudes){
-  const data = { planets:{}, cusps: [] }; // sin casas por ahora
-  for(const b of bodies){
-    data.planets[b] = [ planetsLongitudes[b] ];
-  }
+  const data = { planets:{}, cusps: [] };
+  for(const b of bodies){ data.planets[b] = [ planetsLongitudes[b] ]; }
   const container = document.getElementById('paper');
   container.innerHTML = '';
   new Chart('paper', 800, 800).radix(data);
@@ -271,14 +279,14 @@ async function calculate({name, date, time, zone, place, demo=false}){
     if(demo){
       loc = { lat: 8.9824, lon: -79.5199, label:'Ciudad de Panamá, Panamá' };
       date = '1992-03-06'; time = '10:45'; zone = 'America/Panama';
+      placeInput.value = loc.label;
     }else{
       if(lastPlace){ loc = lastPlace; }
-      else { loc = await geocodeSmart(place.trim()); }
+      else { loc = await geocodeSmart((place||'').trim()); }
     }
-
     if(!date) throw new Error('Falta la fecha.');
-    const whenUTC = toUtcDateISO(date, time, zone || 'UTC');
 
+    const whenUTC = toUtcDate(date, time, zone || 'UTC');
     const lons = eclipticLongitudes(whenUTC);
     drawWheel(lons);
 
