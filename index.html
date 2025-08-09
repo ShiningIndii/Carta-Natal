@@ -232,7 +232,8 @@ function eclipticLongitudes(dateUTC){
   for (const b of bodies) {
     let lon;
     if (b === 'Sun') {
-      lon = (Astronomy.SolarLongitude(dateUTC) + 180) % 360;
+      // Sol geocéntrico = longitud heliocéntrica de la Tierra + 180°
+      lon = (Astronomy.EclipticLongitude('Earth', dateUTC) + 180) % 360;
     } else {
       lon = Astronomy.EclipticLongitude(b, dateUTC);
     }
